@@ -1,82 +1,121 @@
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import axios from 'axios';
+import Header from './components/Header';
+import Drawer from './components/Drawer/index';
+import Home from './pages/Home';
+import Favorites from './pages/Favorites';
+import AppContext from './context';
+import Orders from './pages/Orders';
+
 function App() {
+  const [items, setItems] = React.useState([]);
+  const [cartItems, setCartItems] = React.useState([]);
+  const [cartOpened, setCartOpened] = React.useState(false);
+  const [searchValue, setSearchValue] = React.useState('');
+  const [favorites, setFavorites] = React.useState([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function fetchData() {
+      const cartResponse = await axios.get('https://6231db6b59070d92733cb82a.mockapi.io/cart');
+      const favoritesResponse = await axios.get(
+        'https://6231db6b59070d92733cb82a.mockapi.io/favorites',
+      );
+      const itemsResponse = await axios.get('https://6231db6b59070d92733cb82a.mockapi.io/items');
+      setIsLoading(false);
+
+      setCartItems(cartResponse.data);
+      setFavorites(favoritesResponse.data);
+      setItems(itemsResponse.data);
+    }
+    fetchData();
+  }, []);
+
+  const onAddToCart = async (obj) => {
+    const findItem = cartItems.find((item) => Number(item.parentId) === Number(obj.id));
+    if (findItem) {
+      setCartItems((prev) => prev.filter((item) => Number(item.parentId) !== Number(obj.id)));
+      axios.delete(`https://6231db6b59070d92733cb82a.mockapi.io/cart/${findItem.id}`);
+    } else {
+      const { data } = await axios.post('https://6231db6b59070d92733cb82a.mockapi.io/cart', obj);
+      setCartItems((prev) => [...prev, data]);
+    }
+  };
+
+  const onAddToFavorite = async (obj) => {
+    if (favorites.find((favObj) => Number(favObj.id) === Number(obj.id))) {
+      axios.delete(`https://6231db6b59070d92733cb82a.mockapi.io/favorites/${obj.id}`);
+      setFavorites((prev) => prev.filter((item) => Number(item.id) !== Number(obj.id)));
+    } else {
+      const { data } = await axios.post(
+        'https://6231db6b59070d92733cb82a.mockapi.io/favorites',
+        obj,
+      );
+      setFavorites((prev) => [...prev, data]);
+    }
+  };
+
+  const onRemoveItem = (id) => {
+    axios.delete(`https://6231db6b59070d92733cb82a.mockapi.io/cart/${id}`);
+    setCartItems((prev) => prev.filter((item) => Number(item.id) !== Number(id)));
+  };
+
+  const onChangeSearchInput = (event) => {
+    setSearchValue(event.target.value);
+  };
+
+  const isItemAdded = (id) => {
+    return cartItems.some((obj) => Number(obj.parentId) === Number(id));
+  };
+
   return (
-    <div className="wrapper clear">
-      <header className="d-flex justify-between align-center p-40">
-        <div className="d-flex align-center">
-          <img width={40} height={40} src="/img/logo.png" />
-          <div>
-            <h3 className="text-uppercase">React Sneakers</h3>
-            <p className="opacity-5">Магазин лучших кроссовок</p>
-          </div>
-        </div>
-        <ul className="d-flex">
-          <li className="mr-30">
-            <img width={18} height={18} src="/img/cart.svg" />
-            <span>1205 руб.</span>
-          </li>
-          <li>
-            <img width={18} height={18} src="/img/user.svg" />
-          </li>
-        </ul>
-      </header>
-      <div className="content p-40">
-        <h1 className="mb-40">Все кроссовки</h1>
-        <div className="d-flex">
-          <div className="card">
-            <img width={133} height={112} src="/img/sneakers/1.jpg" alt="sneakers" />
-            <h5>Мужские Кроссовки Nike Blazer Mid Suede</h5>
-            <div className="d-flex justify-between align-center">
-              <div className="d-flex flex-column">
-                <span>Цена</span>
-                <b>12 999руб.</b>
-              </div>
-              <button className="button">
-                <img src="/img/plus.svg" width={11} height={11} />
-              </button>
-            </div>
-          </div>
-          <div className="card">
-            <img width={133} height={112} src="/img/sneakers/2.jpg" alt="sneakers" />
-            <h5>Мужские Кроссовки Nike Blazer Mid Suede</h5>
-            <div className="d-flex justify-between align-center">
-              <div className="d-flex flex-column">
-                <span>Цена</span>
-                <b>12 999руб.</b>
-              </div>
-              <button className="button">
-                <img src="/img/plus.svg" width={11} height={11} />
-              </button>
-            </div>
-          </div>
-          <div className="card">
-            <img width={133} height={112} src="/img/sneakers/3.jpg" alt="sneakers" />
-            <h5>Мужские Кроссовки Nike Blazer Mid Suede</h5>
-            <div className="d-flex justify-between align-center">
-              <div className="d-flex flex-column">
-                <span>Цена</span>
-                <b>12 999руб.</b>
-              </div>
-              <button className="button">
-                <img src="/img/plus.svg" width={11} height={11} />
-              </button>
-            </div>
-          </div>
-          <div className="card">
-            <img width={133} height={112} src="/img/sneakers/4.jpg" alt="sneakers" />
-            <h5>Мужские Кроссовки Nike Blazer Mid Suede</h5>
-            <div className="d-flex justify-between align-center">
-              <div className="d-flex flex-column">
-                <span>Цена</span>
-                <b>12 999руб.</b>
-              </div>
-              <button className="button">
-                <img src="/img/plus.svg" width={11} height={11} />
-              </button>
-            </div>
-          </div>
-        </div>
+    <AppContext.Provider
+      value={{
+        setCartOpened,
+        cartItems,
+        favorites,
+        items,
+        isItemAdded,
+        onAddToFavorite,
+        setCartItems,
+        onAddToCart,
+      }}>
+      <div className="wrapper clear">
+        <Drawer
+          items={cartItems}
+          onClose={() => setCartOpened(false)}
+          onRemove={onRemoveItem}
+          opened={cartOpened}
+        />
+        <Header onClickCart={() => setCartOpened(true)} />
+        <Routes>
+          <Route
+            exact
+            path="/"
+            element={
+              <Home
+                items={items}
+                cartItems={cartItems}
+                searchValue={searchValue}
+                setSearchValue={setSearchValue}
+                onChangeSearchInput={onChangeSearchInput}
+                onAddToFavorite={onAddToFavorite}
+                onAddToCart={onAddToCart}
+                isLoading={isLoading}
+              />
+            }
+          />
+          <Route
+            exact
+            path="/favorites"
+            element={<Favorites onAddToFavorite={onAddToFavorite} />}
+          />
+
+          <Route exact path="/orders" element={<Orders />} />
+        </Routes>
       </div>
-    </div>
+    </AppContext.Provider>
   );
 }
 
